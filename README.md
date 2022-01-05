@@ -91,8 +91,47 @@ Instead of manually polling the `Log` for new `Records`, the *streaming* API
 
 All methods are safe for *concurrent* use.
 
+## Example
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+
+	"github.com/embano1/memlog"
+)
+
+func main() {
+	ctx := context.Background()
+	l, err := memlog.New(ctx)
+	if err != nil {
+		log.Fatalf("create log: %v", err)
+	}
+
+	offset, err := l.Write(ctx, []byte("Hello World"))
+	if err != nil {
+		log.Fatalf("write: %v", err)
+	}
+
+	log.Printf("reading record from offset %d", offset)
+	record, err := l.Read(ctx, offset)
+	if err != nil {
+		log.Fatalf("write: %v", err)
+	}
+
+	log.Printf("record data: %s", record.Data)
+
+	// 2022/01/05 21:03:31 reading record from offset 0
+	// 2022/01/05 21:03:31 record data: Hello World
+}
+```
+
+## Purging the `Log`
+
 The `Log` is devided into an *active* and *history* `segment`. When the *active*
-`segment` is full (`MaxSegmentSize`), it is *sealed* (i.e. read-only) and
+`segment` is full (configurable via `WithMaxSegmentSize()`), it is *sealed* (i.e. read-only) and
 becomes the *history* `segment`. A new empty *active* `segment` is created for
 writes. If there is an existing *history*, it is replaced, i.e. all `Records`
 are purged from the *history*.
@@ -117,7 +156,7 @@ about in the code (and I followed my intuition from how log-structured data
 platforms do it). I did not inspect the Go compiler optimizations, e.g. it might
 actually be smart and create one growable slice under the hood. 🤓
 
-These are some results on my MacBook  using a log size of `1000` (records), i.e.
+These are some results on my MacBook  using a log size of `1,000` (records), i.e.
 where the `Log` history is constantly purged and new `segments` (*slices*) are
 created.
 
