@@ -1,0 +1,32 @@
+name: Create Release
+
+on:
+  # release will only be created when ref is a tag starting with "v"
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  image:
+    name: Create Github release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Get short TAG
+        run: |
+          echo "TAG=$(basename "${{ github.ref }}")" >> $GITHUB_ENV
+
+      - name: Create Github Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${TAG} LICENSE README.md
