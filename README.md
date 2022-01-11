@@ -1,27 +1,36 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/embano1/memlog.svg)](https://pkg.go.dev/github.com/embano1/memlog)
+[![Go
+Reference](https://pkg.go.dev/badge/github.com/embano1/memlog.svg)](https://pkg.go.dev/github.com/embano1/memlog)
 [![Tests](https://github.com/embano1/memlog/actions/workflows/tests.yaml/badge.svg)](https://github.com/embano1/memlog/actions/workflows/tests.yaml)
-[![Latest Release](https://img.shields.io/github/release/embano1/memlog.svg?logo=github&style=flat-square)](https://github.com/embano1/memlog/releases/latest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/embano1/memlog)](https://goreportcard.com/report/github.com/embano1/memlog)
+[![Latest
+Release](https://img.shields.io/github/release/embano1/memlog.svg?logo=github&style=flat-square)](https://github.com/embano1/memlog/releases/latest)
+[![Go Report
+Card](https://goreportcard.com/badge/github.com/embano1/memlog)](https://goreportcard.com/report/github.com/embano1/memlog)
 [![codecov](https://codecov.io/gh/embano1/memlog/branch/main/graph/badge.svg?token=TC7MW723JO)](https://codecov.io/gh/embano1/memlog)
-[![go.mod Go version](https://img.shields.io/github/go-mod/go-version/embano1/memlog)](https://github.com/embano1/memlog)
+[![go.mod Go
+version](https://img.shields.io/github/go-mod/go-version/embano1/memlog)](https://github.com/embano1/memlog)
 
 
 # About
 
 ## tl;dr
 
-An easy to use, lightweight, thread-safe and append-only in-memory log.
+An easy to use, lightweight, thread-safe and append-only in-memory data
+structure modelled as a *Log*.
 
+❌ Note: this package is not about providing an in-memory `logging` library. To
+read more about the ideas behind `memlog` please read ["The Log: What every
+software engineer should know about real-time data's unifying
+abstraction"](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying).
 ## Motivation
 
 I keep hitting the same user story (use case) over and over again: one or more
 clients connected to my application wanting to read an **immutable** stream of
 data, e.g. events or sensor data, **in-order**, **concurrently** (thread-safe)
-and **asynchronously** (at their own pace) in a and resource (memory)
+and **asynchronously** (at their own pace) and in a resource (memory)
 **efficient** way.
 
 There's many solutions to this problem, e.g. exposing some sort of streaming API
-(gRPC, HTTP/REST long-polling) based on custom logic using Go channels or an
+(*gRPC*, HTTP/REST long-polling) based on custom logic using Go channels or an
 internal [ring buffer](https://pkg.go.dev/container/ring), or putting data into
 an external platform like [Kafka](https://kafka.apache.org/), [Redis
 Streams](https://redis.io/topics/streams-intro) or [RabbitMQ
@@ -33,10 +42,10 @@ integrate with and read data from did not have a nice streaming API or Go SDK,
 thus repeating myself writing complex internal caching, buffering and
 concurrency handling logic for the client APIs.
 
-I looked around and could not find a simple and easy to use library (Go package)
-for this problem, so I created `memlog`: an **easy to use, lightweight
-(in-memory), thread-safe, append-only log** inspired by popular streaming
-systems with a **minimal API** using Go's **standard library** primitives 🤩
+I looked around and could not find a simple and easy to use Go library for this
+problem, so I created `memlog`: an **easy to use, lightweight (in-memory),
+thread-safe, append-only log** inspired by popular streaming systems with a
+**minimal API** using Go's **standard library** primitives 🤩
 
 ## A stateless Log? You gotta be kidding!
 
@@ -48,26 +57,33 @@ I'm glad you asked 😀
 This library certainly is not intended to replace messaging, queuing or
 streaming systems. It was built for use cases where there exists a *durable
 data/event source*, e.g. a legacy system, REST API, database, etc. that can't
-(or should not) be changed but its data should be made available over a
-streaming-like API, e.g. gRPC or processed by a Go application which requires
-the aformentationed properties of a `Log`.
+(or should not) be changed. But the requirement being that the (source) data
+should be made available over a streaming-like API, e.g. *gRPC* or processed by
+a Go application which requires the aformentationed properties of a `Log`.
 
 `memlog` helps as it allows to bridge between these different APIs and use cases
-as a *building block* to extract and store data `Records` from one system to an
-*in-memory* `Log` (think ordered cache).
+as a *building block* to extract and store data `Records` from an external
+system into an *in-memory* `Log` (think ordered cache).
 
 These `Records` can then be internally processed (lightweight ETL) or served
-asynchronously, in-order (`Offset`-based) and concurrency-safe over a *modern
-streaming API*, e.g. gRPC or HTTP/REST (chunked encoding via long polling), to
+asynchronously, in-order (`Offset`-based) and concurrently over a *modern
+streaming API*, e.g. *gRPC* or HTTP/REST (chunked encoding via long polling), to
 remote clients.
 
-Given the data source needs to be durable in this design, one can optionally
-build periodic checkpointing logic using an `Offset` as the checkpoint value.
-When running in Kubernetes, [`kvstore`](https://github.com/knative/pkg/tree/main/kvstore) provides a nice abstraction on top of a `ConfigMap`. 
+### Checkpointing
 
-If the `memlog` process crashes, it can resume by first loading data from the
-source starting off the last checkpointed `Offset`, if any, and resume
-streaming. Quiet similar to the Kubernetes `ListerWatcher()`
+Given the data source needs to be durable in this design, one can optionally
+build periodic checkpointing logic using the `Record` `Offset` as the checkpoint
+value. 
+
+💡 When running in Kubernetes,
+[`kvstore`](https://github.com/knative/pkg/tree/main/kvstore) provides a nice
+abstraction on top of a `ConfigMap` for such requirements. 
+
+If the `memlog` process crashes, it can then resume the last checkpointed
+`Offset`, load the changes since then from the source and resume streaming. 
+
+💡 This approach is quiet similar to the Kubernetes `ListerWatcher()`
 [pattern](https://youtu.be/YIBQrP1grPE?t=1132). See
 [`memlog_test.go`](./memlog_test.go) for some inspiration.
 
@@ -79,17 +95,28 @@ The API is intentionally kept minimal. A new `Log` is constructed with
 
 The first write to the `Log` using *default* `Options` starts at position
 (`Offset`) `0`. Every write creates an immutable `Record` in the `Log`.
-`Records` are purged from the `Log` when the *history* `segment` is replaced (see
-notes below).
+`Records` are purged from the `Log` when the *history* `segment` is replaced
+(see notes below).
 
-The *earliest* and *latest* `Offset` can be retrieved with `Log.Range(ctx)`.
+The *earliest* and *latest* `Offset` available in a `Log` can be retrieved with
+`Log.Range(ctx)`.
 
-A `Record` can be read with `Log.Read(ctx, offset)`.
+A specified `Record` can be read with `Log.Read(ctx, offset)`.
 
-Instead of manually polling the `Log` for new `Records`, the *streaming* API
+💡 Instead of manually polling the `Log` for new `Records`, the *streaming* API
 `Log.Stream(ctx, startOffset)` should be used.
 
 All methods are safe for *concurrent* use.
+
+## (Not) one `Log` to rule them all
+
+One is not constrained by just creating **one** `Log`. For certain use cases,
+creating multiple `Logs` might be useful. For example:
+
+- Manage completely different data sets/sizes in the same process
+- Partitioning input data by type or *key*
+- Setting different `Log` sizes (i.e. retention times), e.g. premium users will
+  have access to a larger *history* of `Records`
 
 ## Example
 
@@ -97,49 +124,47 @@ All methods are safe for *concurrent* use.
 package main
 
 import (
-	"context"
-	"log"
+    "context"
+    "log"
 
-	"github.com/embano1/memlog"
+    "github.com/embano1/memlog"
 )
 
 func main() {
-	ctx := context.Background()
-	l, err := memlog.New(ctx)
-	if err != nil {
-		log.Fatalf("create log: %v", err)
-	}
+    ctx := context.Background()
+    l, err := memlog.New(ctx)
+    if err != nil {
+        log.Fatalf("create log: %v", err)
+    }
 
-	offset, err := l.Write(ctx, []byte("Hello World"))
-	if err != nil {
-		log.Fatalf("write: %v", err)
-	}
+    offset, err := l.Write(ctx, []byte("Hello World"))
+    if err != nil {
+        log.Fatalf("write: %v", err)
+    }
 
-	log.Printf("reading record from offset %d", offset)
-	record, err := l.Read(ctx, offset)
-	if err != nil {
-		log.Fatalf("write: %v", err)
-	}
+    log.Printf("reading record from offset %d", offset)
+    record, err := l.Read(ctx, offset)
+    if err != nil {
+        log.Fatalf("write: %v", err)
+    }
 
-	log.Printf("record data: %s", record.Data)
+    log.Printf("record data: %s", record.Data)
 
-	// 2022/01/05 21:03:31 reading record from offset 0
-	// 2022/01/05 21:03:31 record data: Hello World
+    // 2022/01/05 21:03:31 reading record from offset 0
+    // 2022/01/05 21:03:31 record data: Hello World
 }
 ```
 
 ## Purging the `Log`
 
 The `Log` is devided into an *active* and *history* `segment`. When the *active*
-`segment` is full (configurable via `WithMaxSegmentSize()`), it is *sealed* (i.e. read-only) and
-becomes the *history* `segment`. A new empty *active* `segment` is created for
-writes. If there is an existing *history*, it is replaced, i.e. all `Records`
-are purged from the *history*.
+`segment` is full (configurable via `WithMaxSegmentSize()`), it is *sealed*
+(i.e. read-only) and becomes the *history* `segment`. A new empty *active*
+`segment` is created for writes. If there is an existing *history*, it is
+replaced, i.e. all `Records` are purged from the *history*.
 
-See
-[pkg.go.dev](https://pkg.go.dev/github.com/embano1/memlog)
-for the API reference and examples.
-
+See [pkg.go.dev](https://pkg.go.dev/github.com/embano1/memlog) for the API
+reference and examples.
 
 # Benchmark
 
@@ -156,9 +181,9 @@ about in the code (and I followed my intuition from how log-structured data
 platforms do it). I did not inspect the Go compiler optimizations, e.g. it might
 actually be smart and create one growable slice under the hood. 🤓
 
-These are some results on my MacBook  using a log size of `1,000` (records), i.e.
-where the `Log` history is constantly purged and new `segments` (*slices*) are
-created.
+These are some results on my MacBook  using a log size of `1,000` (records),
+i.e. where the `Log` history is constantly purged and new `segments` (*slices*)
+are created.
 
 ```console
 go test -v -run=none -bench=. -cpu 1,2,4,8,16 -benchmem
