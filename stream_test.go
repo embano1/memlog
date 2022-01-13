@@ -57,28 +57,23 @@ func TestLog_Stream(t *testing.T) {
 					assert.NilError(t, err)
 				}
 
-				streamCh, errCh := l.Stream(ctx, tc.streamStart)
-
+				stream := l.Stream(ctx, tc.streamStart)
 				counter := 0
-			LOOP:
+
 				for {
-					select {
-					case r := <-streamCh:
-						assert.Equal(t, r.Metadata.Earliest, tc.logStart)
-						assert.Equal(t, r.Metadata.Latest, tc.logStart+Offset(tc.segSize-1))
-						assert.Equal(t, r.Record.Metadata.Offset, Offset(counter)+tc.streamStart)
+					if r, ok := stream.Next(); ok {
+						assert.Equal(t, r.Metadata.Offset, Offset(counter)+tc.streamStart)
 
 						counter++
 						if counter == tc.stopAfter {
 							cancel()
-							streamCh = nil
 						}
-					case streamErr := <-errCh:
-						assert.Assert(t, errors.Is(streamErr, context.Canceled))
-						break LOOP
+						continue
 					}
+					break
 				}
 
+				assert.Assert(t, errors.Is(stream.Err(), context.Canceled))
 				assert.Equal(t, counter, tc.stopAfter)
 			})
 		}
@@ -144,17 +139,15 @@ func TestLog_Stream(t *testing.T) {
 					assert.NilError(t, err)
 				}
 
-				streamCh, errCh := l.Stream(ctx, tc.streamStart)
+				stream := l.Stream(ctx, tc.streamStart)
 
-				select {
-				case <-ctx.Done():
-					t.Fatalf("should not fail with %v", ctx.Err())
-				case <-streamCh:
-					t.Fatalf("should not receive from stream")
-				case streamErr := <-errCh:
-					assert.Assert(t, errors.Is(streamErr, ErrOutOfRange))
-
+				for {
+					if _, ok := stream.Next(); ok {
+						t.Fatalf("should not receive from stream")
+					}
+					break
 				}
+				assert.Assert(t, errors.Is(stream.Err(), ErrOutOfRange))
 			})
 		}
 	})
@@ -230,67 +223,26 @@ func TestLog_Stream(t *testing.T) {
 					}
 				}()
 
-				streamCh, errCh := l.Stream(ctx, tc.streamStart)
-
+				stream := l.Stream(ctx, tc.streamStart)
 				counter := 0
-			LOOP:
+
 				for {
-					select {
-					case r := <-streamCh:
-						assert.Equal(t, r.Record.Metadata.Offset, Offset(counter)+tc.streamStart)
+					if r, ok := stream.Next(); ok {
+						assert.Equal(t, r.Metadata.Offset, Offset(counter)+tc.streamStart)
 
 						counter++
 						if counter == tc.stopAfter {
 							cancel()
 						}
-					case streamErr := <-errCh:
-						assert.Assert(t, errors.Is(streamErr, context.Canceled))
-						break LOOP
+						continue
 					}
+					break
 				}
 
+				assert.Assert(t, errors.Is(stream.Err(), context.Canceled))
 				assert.Equal(t, counter, tc.stopAfter)
 			})
 		}
-	})
-
-	t.Run("returns error when stream reader is too slow", func(t *testing.T) {
-		t.Parallel()
-
-		const (
-			logStart    = Offset(0)
-			segSize     = 1000
-			streamStart = Offset(0)
-		)
-
-		ctx := context.Background()
-		opts := []Option{
-			WithStartOffset(logStart),
-			WithMaxSegmentSize(segSize),
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-
-		l, err := New(ctx, opts...)
-		assert.NilError(t, err)
-
-		_, errCh := l.Stream(ctx, streamStart)
-
-		go func() {
-			for {
-				_, writeErr := l.Write(ctx, []byte(`{"id":"someID","message":"write data"}`))
-				validErr := func(err error) bool {
-					return err == nil || errors.Is(err, context.Canceled)
-				}
-				assert.Assert(t, validErr(writeErr))
-
-				time.Sleep(time.Millisecond * 10) // 100 writes/s
-			}
-		}()
-
-		streamErr := <-errCh
-		assert.Assert(t, errors.Is(streamErr, ErrSlowReader))
 	})
 
 	t.Run("two stream receivers, starting at different offsets until stream cancelled", func(t *testing.T) {
@@ -348,20 +300,17 @@ func TestLog_Stream(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			streamCh, errCh := l.Stream(ctx, streamOneStart)
+			stream := l.Stream(ctx, streamOneStart)
 			for {
-				select {
-				case r := <-streamCh:
-					assert.Equal(t, r.Record.Metadata.Offset, logStart+Offset(s1Counter)+streamOneStart)
+				r, ok := stream.Next()
+				if ok {
+					assert.Equal(t, r.Metadata.Offset, logStart+Offset(s1Counter)+streamOneStart)
 					s1Counter++
-				case streamErr := <-errCh:
-					validErr := func(err error) bool {
-						return err == nil || errors.Is(err, context.DeadlineExceeded)
-					}
-					assert.Assert(t, validErr(streamErr))
-					return
+					continue
 				}
+				break
 			}
+			assert.Assert(t, errors.Is(stream.Err(), context.DeadlineExceeded))
 		}()
 
 		// stream reader one
@@ -370,20 +319,17 @@ func TestLog_Stream(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			streamCh, errCh := l.Stream(ctx, streamTwoStart)
+			stream := l.Stream(ctx, streamTwoStart)
 			for {
-				select {
-				case r := <-streamCh:
-					assert.Equal(t, r.Record.Metadata.Offset, logStart+Offset(s2Counter)+streamTwoStart)
+				r, ok := stream.Next()
+				if ok {
+					assert.Equal(t, r.Metadata.Offset, logStart+Offset(s2Counter)+streamTwoStart)
 					s2Counter++
-				case streamErr := <-errCh:
-					validErr := func(err error) bool {
-						return err == nil || errors.Is(err, context.DeadlineExceeded)
-					}
-					assert.Assert(t, validErr(streamErr))
-					return
+					continue
 				}
+				break
 			}
+			assert.Assert(t, errors.Is(stream.Err(), context.DeadlineExceeded))
 		}()
 
 		wg.Wait()

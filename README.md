@@ -18,7 +18,7 @@ An easy to use, lightweight, thread-safe and append-only in-memory data
 structure modelled as a *Log*.
 
 ❌ Note: this package is not about providing an in-memory `logging` library. To
-read more about the ideas behind `memlog` please read ["The Log: What every
+read more about the ideas behind `memlog` please see ["The Log: What every
 software engineer should know about real-time data's unifying
 abstraction"](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying).
 ## Motivation
@@ -80,7 +80,7 @@ value.
 [`kvstore`](https://github.com/knative/pkg/tree/main/kvstore) provides a nice
 abstraction on top of a `ConfigMap` for such requirements. 
 
-If the `memlog` process crashes, it can then resume the last checkpointed
+If the `memlog` process crashes, it can then resume from the last checkpointed
 `Offset`, load the changes since then from the source and resume streaming. 
 
 💡 This approach is quiet similar to the Kubernetes `ListerWatcher()`
@@ -124,34 +124,38 @@ creating multiple `Logs` might be useful. For example:
 package main
 
 import (
-    "context"
-    "log"
+	"context"
+	"fmt"
+	"os"
 
-    "github.com/embano1/memlog"
+	"github.com/embano1/memlog"
 )
 
 func main() {
-    ctx := context.Background()
-    l, err := memlog.New(ctx)
-    if err != nil {
-        log.Fatalf("create log: %v", err)
-    }
+	ctx := context.Background()
+	l, err := memlog.New(ctx)
+	if err != nil {
+		fmt.Printf("create log: %v", err)
+		os.Exit(1)
+	}
 
-    offset, err := l.Write(ctx, []byte("Hello World"))
-    if err != nil {
-        log.Fatalf("write: %v", err)
-    }
+	offset, err := l.Write(ctx, []byte("Hello World"))
+	if err != nil {
+		fmt.Printf("write: %v", err)
+		os.Exit(1)
+	}
 
-    log.Printf("reading record from offset %d", offset)
-    record, err := l.Read(ctx, offset)
-    if err != nil {
-        log.Fatalf("write: %v", err)
-    }
+	fmt.Printf("reading record at offset %d\n", offset)
+	record, err := l.Read(ctx, offset)
+	if err != nil {
+		fmt.Printf("read: %v", err)
+		os.Exit(1)
+	}
 
-    log.Printf("record data: %s", record.Data)
+	fmt.Printf("data says: %s", record.Data)
 
-    // 2022/01/05 21:03:31 reading record from offset 0
-    // 2022/01/05 21:03:31 record data: Hello World
+	// reading record at offset 0
+	// data says: Hello World
 }
 ```
 

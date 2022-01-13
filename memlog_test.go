@@ -14,7 +14,7 @@ import (
 	"github.com/embano1/memlog"
 )
 
-func Test_Log_Checkpoint_Resume(t *testing.T) {
+func TestLog_Checkpoint_Resume(t *testing.T) {
 	const (
 		sourceDataCount = 50
 		start           = memlog.Offset(0)
@@ -132,7 +132,7 @@ func Test_Log_Checkpoint_Resume(t *testing.T) {
 	})
 }
 
-func Test_Log_Concurrent(t *testing.T) {
+func TestLog_Concurrent(t *testing.T) {
 	type wantOffsets struct {
 		earliest memlog.Offset
 		latest   memlog.Offset
