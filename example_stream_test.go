@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/embano1/memlog"
 )
@@ -14,8 +15,9 @@ import (
 func Example_stream() {
 	// showing some custom options in action
 	const (
-		logStart = 10
-		logSize  = 100
+		logStart     = 10
+		logSize      = 100
+		writeRecords = 10
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -31,7 +33,6 @@ func Example_stream() {
 		os.Exit(1)
 	}
 
-	const writeRecords = 10
 	// write some records (offsets 10-14)
 	for i := 0; i < writeRecords/2; i++ {
 		d := fmt.Sprintf(`{"id":%d,"message","hello world"}`, i+logStart)
@@ -42,59 +43,46 @@ func Example_stream() {
 		}
 	}
 
-	// start stream from latest (offset 14)
-	_, latest := l.Range(ctx)
-	recChan, errChan := l.Stream(ctx, latest)
+	eg, egCtx := errgroup.WithContext(ctx)
 
-	var wg sync.WaitGroup
-
+	_, latest := l.Range(egCtx)
 	// stream records
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	eg.Go(func() error {
+		// start stream from latest (offset 14)
+		stream := l.Stream(egCtx, latest)
+
 		for {
-			select {
-			case r := <-recChan:
-				fmt.Printf("Record at offset %d says %q\n", r.Record.Metadata.Offset, r.Record.Data)
-			case streamErr := <-errChan:
-				if errors.Is(streamErr, context.Canceled) {
-					return
-				}
-				fmt.Printf("stream: %v", streamErr)
-				os.Exit(1)
+			if r, ok := stream.Next(); ok {
+				fmt.Printf("Record at offset %d says %q\n", r.Metadata.Offset, r.Data)
+				continue
 			}
+			break
 		}
-	}()
+		return stream.Err()
+	})
 
 	// continue writing while streaming
-	wg.Add(1)
-	go func() {
-		defer func() {
-			wg.Done()
-		}()
+	eg.Go(func() error {
 		for i := writeRecords / 2; i < writeRecords; i++ {
 			d := fmt.Sprintf(`{"id":%d,"message","hello world"}`, i+logStart)
 			_, err := l.Write(ctx, []byte(d))
 			if err != nil && !errors.Is(err, context.Canceled) {
-				fmt.Printf("write: %v", err)
-				os.Exit(1)
+				return err
 			}
 		}
-	}()
+		return nil
+	})
 
 	// simulate SIGTERM after 2s
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	eg.Go(func() error {
 		time.Sleep(time.Second * 2)
 		cancel()
-	}()
+		return nil
+	})
 
-	wg.Wait()
-
-	// drain any remaining records to release the closed (buffered) channel
-	for r := range recChan {
-		fmt.Printf("Record at offset %d says %q\n", r.Record.Metadata.Offset, r.Record.Data)
+	if err = eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		fmt.Printf("run example: %v", err)
+		os.Exit(1)
 	}
 
 	// Output: Record at offset 14 says "{\"id\":14,\"message\",\"hello world\"}"
