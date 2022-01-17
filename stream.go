@@ -10,7 +10,8 @@ const (
 	streamBackoffInterval = time.Millisecond * 10
 )
 
-// Stream is an iterator to stream records in order from a log
+// Stream is an iterator to stream records in order from a log. It must only be
+// used within the same goroutine.
 type Stream struct {
 	ctx      context.Context
 	log      *Log
@@ -19,11 +20,11 @@ type Stream struct {
 	err      error
 }
 
-// Next returns the next Record, but only if ok is true. If ok is false, the
-// iterator was stopped and any subsequent calls will return an invalid record
-// and false. 
+// Next blocks until the next Record is available. ok is true if the iterator
+// has not stopped, otherwise ok is false and any subsequent calls return an
+// invalid record and false.
 //
-// The caller must consult Err() which error, if any, caused stopping the error.
+// The caller must consult Err() which error caused stopping the error.
 func (s *Stream) Next() (r Record, ok bool) {
 	for {
 		if s.done {
@@ -54,9 +55,8 @@ func (s *Stream) Next() (r Record, ok bool) {
 	}
 }
 
-// Err returns the first error, if any, that has ocurred during streaming. When
-// the stream iterator is stopped this method should be called to inspect
-// whether the iterator was stopped due to an error.
+// Err returns the first error that has ocurred during streaming. This method
+// should be called to inspect the error that caused stopping the iterator.
 func (s *Stream) Err() error {
 	return s.err
 }
@@ -64,6 +64,9 @@ func (s *Stream) Err() error {
 // Stream returns a stream iterator to stream records, starting at the given
 // start offset. If the start offset is in the future, stream will continuously
 // poll until this offset is written.
+//
+// Use Stream.Next() to read from the stream. See the example for how to use
+// this API.
 //
 // The returned stream iterator must only be used within the same goroutine.
 func (l *Log) Stream(ctx context.Context, start Offset) Stream {
