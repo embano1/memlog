@@ -28,6 +28,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
+      - name: Install tparse
+        run: go install github.com/mfridman/tparse@latest
+
       - name: Check for .codecov.yaml
         id: codecov-enabled
         uses: andstor/file-existence-action@v1
@@ -40,8 +43,8 @@ jobs:
 
       - name: Test
         env:
-          GOFLAGS: "-v -race -count=1"
-        run: go test $COVER_OPTS ./...
+          GOFLAGS: "-v -race -count=1 -json"
+        run: go test $COVER_OPTS ./... | tparse -all
 
       - name: Verify git clean
         shell: bash
