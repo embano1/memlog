@@ -36,7 +36,7 @@ func Example_stream() {
 	// write some records (offsets 10-14)
 	for i := 0; i < writeRecords/2; i++ {
 		d := fmt.Sprintf(`{"id":%d,"message","hello world"}`, i+logStart)
-		_, err := l.Write(ctx, []byte(d))
+		_, err = l.Write(ctx, []byte(d))
 		if err != nil {
 			fmt.Printf("write: %v", err)
 			os.Exit(1)

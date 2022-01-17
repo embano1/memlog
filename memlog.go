@@ -115,7 +115,7 @@ func New(_ context.Context, options ...Option) (*Log, error) {
 	return &l, nil
 }
 
-// Write creates a new record in the log with the given data. The write offset
+// Write creates a new record in the log with the provided data. The write offset
 // of the new record is returned. If an error occurs, an invalid offset (-1) and
 // the error is returned.
 //
@@ -176,7 +176,7 @@ func (l *Log) write(ctx context.Context, data []byte) (Offset, error) {
 	return r.Metadata.Offset, nil
 }
 
-// Read reads a record from the log at the given offset. If an error occurs, an
+// Read reads a record from the log at the specified offset. If an error occurs, an
 // invalid (empty) record and the error is returned.
 //
 // Safe for concurrent use.
@@ -185,6 +185,48 @@ func (l *Log) Read(ctx context.Context, offset Offset) (Record, error) {
 	defer l.mu.RUnlock()
 
 	return l.read(ctx, offset)
+}
+
+// ReadBatch reads multiple records into batch starting at the specified offset.
+// The number of records read into batch and the error, if any, is returned.
+//
+// ReadBatch will read at most len(batch) records, always starting at batch
+// index 0. ReadBatch stops reading at the end of the log, indicated by
+// ErrFutureOffset.
+//
+// The caller must expect partial batch results and must not read more records
+// from batch than indicated by the returned number of records. See the example
+// for how to use this API.
+//
+// Safe for concurrent use.
+func (l *Log) ReadBatch(ctx context.Context, offset Offset, batch []Record) (int, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	for i := 0; i < len(batch); i++ {
+		r, err := l.read(ctx, offset)
+		if err != nil {
+			// invalid start offset or empty log
+			if errors.Is(err, ErrOutOfRange) {
+				return 0, err
+			}
+
+			// return what we have
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return i, err
+			}
+
+			// end of log
+			if errors.Is(err, ErrFutureOffset) {
+				return i, ErrFutureOffset
+			}
+
+		}
+		batch[i] = r
+		offset++
+	}
+
+	return len(batch), nil
 }
 
 func (l *Log) read(ctx context.Context, offset Offset) (Record, error) {
