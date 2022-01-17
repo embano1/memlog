@@ -14,6 +14,272 @@ import (
 	"github.com/embano1/memlog"
 )
 
+func TestLog_ReadBatch(t *testing.T) {
+	t.Run("fails to read batch", func(t *testing.T) {
+		testCases := []struct {
+			name        string
+			start       memlog.Offset // log start
+			segSize     int
+			records     [][]byte
+			offset      memlog.Offset // read offset
+			batchSize   int
+			wantRecords int // total number records read
+			wantErr     error
+		}{
+			{
+				name:        "fails on empty log",
+				start:       0,
+				segSize:     10,
+				records:     nil,
+				offset:      0,
+				batchSize:   10,
+				wantRecords: 0,
+				wantErr:     memlog.ErrFutureOffset,
+			},
+			{
+				name:        "fails on invalid start offset",
+				start:       10,
+				segSize:     10,
+				records:     memlog.NewTestDataSlice(t, 10),
+				offset:      0,
+				batchSize:   10,
+				wantRecords: 0,
+				wantErr:     memlog.ErrOutOfRange,
+			},
+			{
+				name:        "fails on invalid read offset",
+				start:       10,
+				segSize:     10,
+				records:     memlog.NewTestDataSlice(t, 10),
+				offset:      20,
+				batchSize:   10,
+				wantRecords: 0,
+				wantErr:     memlog.ErrFutureOffset,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				ctx := context.Background()
+
+				opts := []memlog.Option{
+					memlog.WithClock(clock.NewMock()),
+					memlog.WithStartOffset(tc.start),
+					memlog.WithMaxSegmentSize(tc.segSize),
+				}
+
+				l, err := memlog.New(ctx, opts...)
+				assert.NilError(t, err)
+
+				records := make([]memlog.Record, tc.batchSize)
+				count, err := l.ReadBatch(ctx, tc.offset, records)
+				assert.Assert(t, errors.Is(err, tc.wantErr))
+				assert.Equal(t, count, tc.wantRecords)
+			})
+		}
+	})
+
+	t.Run("fails on cancelled context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		l, err := memlog.New(ctx)
+		assert.NilError(t, err)
+
+		records := make([]memlog.Record, 10)
+		cancel()
+		count, err := l.ReadBatch(ctx, 0, records)
+		assert.Assert(t, errors.Is(err, context.Canceled))
+		assert.Equal(t, count, 0)
+	})
+
+	t.Run("fails when deadline exceeded", func(t *testing.T) {
+		ctx := context.Background()
+		l, err := memlog.New(ctx)
+		assert.NilError(t, err)
+
+		ctx, cancel := context.WithTimeout(ctx, 0)
+		defer cancel()
+
+		records := make([]memlog.Record, 10)
+		count, err := l.ReadBatch(ctx, 0, records)
+		assert.Assert(t, errors.Is(err, context.DeadlineExceeded))
+		assert.Equal(t, count, 0)
+	})
+
+	t.Run("reads one batch", func(t *testing.T) {
+		testCases := []struct {
+			name      string
+			start     memlog.Offset // log start
+			segSize   int
+			records   [][]byte
+			offset    memlog.Offset // read offset
+			batchSize int
+		}{
+			{
+				name:      "log starts at 0, write 10 records, no purge, batch size 10",
+				start:     0,
+				segSize:   10,
+				records:   memlog.NewTestDataSlice(t, 10),
+				offset:    0,
+				batchSize: 10,
+			},
+			{
+				name:      "log starts at 0, write 10 records, no purge, batch size 5",
+				start:     0,
+				segSize:   10,
+				records:   memlog.NewTestDataSlice(t, 10),
+				offset:    0,
+				batchSize: 5,
+			},
+			{
+				name:      "log starts at 10, write 10 records, no purge, batch size 0",
+				start:     10,
+				segSize:   10,
+				records:   memlog.NewTestDataSlice(t, 10),
+				offset:    0,
+				batchSize: 0,
+			},
+			{
+				name:      "log starts at 10, write 5 records, no purge, batch size 5",
+				start:     10,
+				segSize:   10,
+				records:   memlog.NewTestDataSlice(t, 5),
+				offset:    10,
+				batchSize: 5,
+			},
+			{
+				name:      "log starts at 10, write 30 records, with purge, batch size 10",
+				start:     10,
+				segSize:   10,
+				records:   memlog.NewTestDataSlice(t, 30),
+				offset:    30,
+				batchSize: 10,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				ctx := context.Background()
+
+				opts := []memlog.Option{
+					memlog.WithClock(clock.NewMock()),
+					memlog.WithStartOffset(tc.start),
+					memlog.WithMaxSegmentSize(tc.segSize),
+				}
+
+				l, err := memlog.New(ctx, opts...)
+				assert.NilError(t, err)
+
+				for _, d := range tc.records {
+					_, err = l.Write(ctx, d)
+					assert.NilError(t, err)
+				}
+
+				records := make([]memlog.Record, tc.batchSize)
+				count, err := l.ReadBatch(ctx, tc.offset, records)
+				assert.NilError(t, err)
+				assert.Equal(t, count, tc.batchSize)
+			})
+		}
+	})
+
+	t.Run("reads multiple batches until end of log", func(t *testing.T) {
+		testCases := []struct {
+			name      string
+			start     memlog.Offset // log start
+			segSize   int
+			records   [][]byte
+			offset    memlog.Offset // read offset
+			batchSize int
+		}{
+			{
+				name:      "log starts at 0, write 30 records, no purge, batch size 10",
+				start:     0,
+				segSize:   30,
+				records:   memlog.NewTestDataSlice(t, 30),
+				offset:    0,
+				batchSize: 10,
+			},
+			{
+				name:      "log starts at 0, write 10 records, no purge, read from 9, batch size 5",
+				start:     0,
+				segSize:   30,
+				records:   memlog.NewTestDataSlice(t, 10),
+				offset:    9,
+				batchSize: 5,
+			},
+			{
+				name:      "log starts at 0, write 30 records, no purge, read from 10, batch size 5",
+				start:     0,
+				segSize:   30,
+				records:   memlog.NewTestDataSlice(t, 30),
+				offset:    10,
+				batchSize: 5,
+			},
+			{
+				name:      "log starts at 10, write 40 records, no purge, read from 20, batch size 1",
+				start:     10,
+				segSize:   40,
+				records:   memlog.NewTestDataSlice(t, 40),
+				offset:    20,
+				batchSize: 1,
+			},
+			{
+				name:      "log starts at 0, write 30 records, with purge, read from 10, batch size 5",
+				start:     0,
+				segSize:   10,
+				records:   memlog.NewTestDataSlice(t, 30),
+				offset:    10,
+				batchSize: 5,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				ctx := context.Background()
+
+				opts := []memlog.Option{
+					memlog.WithClock(clock.NewMock()),
+					memlog.WithStartOffset(tc.start),
+					memlog.WithMaxSegmentSize(tc.segSize),
+				}
+
+				l, err := memlog.New(ctx, opts...)
+				assert.NilError(t, err)
+
+				for _, d := range tc.records {
+					_, err = l.Write(ctx, d)
+					assert.NilError(t, err)
+				}
+
+				records := make([]memlog.Record, tc.batchSize)
+
+				var (
+					count  int
+					total  int
+					offset = tc.offset
+				)
+				for err == nil {
+					count, err = l.ReadBatch(ctx, offset, records)
+					total += count
+					offset += memlog.Offset(count)
+				}
+
+				assert.Assert(t, errors.Is(err, memlog.ErrFutureOffset))
+				switch {
+				// with purge
+				case len(tc.records) > tc.segSize:
+					assert.Equal(t, total, len(tc.records)-(2*tc.segSize)+int(tc.offset))
+				// 	no purge
+				default:
+					assert.Equal(t, total, len(tc.records)-int(tc.offset-tc.start))
+				}
+			})
+		}
+	})
+}
+
 func TestLog_Checkpoint_Resume(t *testing.T) {
 	const (
 		sourceDataCount = 50
@@ -95,7 +361,7 @@ func TestLog_Checkpoint_Resume(t *testing.T) {
 				break
 			}
 
-			assert.Equal(t, r.Metadata.Offset, memlog.Offset(i))
+			assert.Equal(t, r.Metadata.Offset, i)
 			records = append(records, r)
 		}
 	})

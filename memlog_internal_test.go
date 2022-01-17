@@ -230,15 +230,15 @@ func TestLog_read(t *testing.T) {
 		testCases := []struct {
 			name    string
 			start   Offset
-			record  Offset
+			read    Offset
 			wantErr error
 		}{
-			{name: "start offset 0, read -5", start: 0, record: -5, wantErr: ErrOutOfRange},
-			{name: "start offset 10, read 0", start: 10, record: 0, wantErr: ErrOutOfRange},
-			{name: "start offset 10, read 9", start: 10, record: 9, wantErr: ErrOutOfRange},
-			{name: "start offset 0, read 0", start: 0, record: 0, wantErr: ErrFutureOffset},
-			{name: "start offset 10, read 100", start: 10, record: 100, wantErr: ErrFutureOffset},
-			{name: "start offset 100, read 100", start: 100, record: 100, wantErr: ErrFutureOffset},
+			{name: "start offset 0, read 0", start: 0, read: 0, wantErr: ErrFutureOffset},
+			{name: "start offset 0, read -5", start: 0, read: -5, wantErr: ErrOutOfRange},
+			{name: "start offset 10, read 0", start: 10, read: 0, wantErr: ErrOutOfRange},
+			{name: "start offset 10, read 9", start: 10, read: 9, wantErr: ErrOutOfRange},
+			{name: "start offset 10, read 100", start: 10, read: 100, wantErr: ErrFutureOffset},
+			{name: "start offset 100, read 100", start: 100, read: 100, wantErr: ErrFutureOffset},
 		}
 
 		for _, tc := range testCases {
@@ -247,7 +247,7 @@ func TestLog_read(t *testing.T) {
 				l, err := New(ctx, WithStartOffset(tc.start))
 				assert.NilError(t, err)
 
-				r, err := l.read(ctx, tc.record)
+				r, err := l.read(ctx, tc.read)
 				assert.Assert(t, errors.Is(err, tc.wantErr))
 				assert.Assert(t, r.Metadata.Created.IsZero())
 			})
@@ -256,28 +256,28 @@ func TestLog_read(t *testing.T) {
 
 	t.Run("read fails when record is purged", func(t *testing.T) {
 		testCases := []struct {
-			name         string
-			start        Offset
-			segSize      int
-			writeRecords [][]byte
-			record       Offset
-			wantErr      error
+			name    string
+			start   Offset
+			segSize int
+			records [][]byte
+			read    Offset
+			wantErr error
 		}{
 			{
-				name:         "start offset 0, segment size 5, write 20, read offset 0",
-				start:        0,
-				segSize:      5,
-				writeRecords: NewTestDataSlice(t, 20),
-				record:       0,
-				wantErr:      ErrOutOfRange,
+				name:    "start offset 0, segment size 5, write 20, read offset 0",
+				start:   0,
+				segSize: 5,
+				records: NewTestDataSlice(t, 20),
+				read:    0,
+				wantErr: ErrOutOfRange,
 			},
 			{
-				name:         "start offset 10, segment size 2, write 5, read offset 10",
-				start:        10,
-				segSize:      2,
-				writeRecords: NewTestDataSlice(t, 5),
-				record:       10,
-				wantErr:      ErrOutOfRange,
+				name:    "start offset 10, segment size 2, write 5, read offset 10",
+				start:   10,
+				segSize: 2,
+				records: NewTestDataSlice(t, 5),
+				read:    10,
+				wantErr: ErrOutOfRange,
 			},
 		}
 
@@ -292,13 +292,13 @@ func TestLog_read(t *testing.T) {
 				l, err := New(ctx, opts...)
 				assert.NilError(t, err)
 
-				for i, d := range tc.writeRecords {
+				for i, d := range tc.records {
 					offset, writeErr := l.write(ctx, d)
 					assert.NilError(t, writeErr)
 					assert.Equal(t, offset, tc.start+Offset(i))
 				}
 
-				r, err := l.read(ctx, tc.record)
+				r, err := l.read(ctx, tc.read)
 				assert.Assert(t, errors.Is(err, tc.wantErr))
 				assert.Assert(t, r.Metadata.Created.IsZero())
 			})
@@ -307,22 +307,22 @@ func TestLog_read(t *testing.T) {
 
 	t.Run("read from log succeeds", func(t *testing.T) {
 		testCases := []struct {
-			name         string
-			start        Offset
-			segSize      int
-			writeRecords [][]byte
+			name    string
+			start   Offset
+			segSize int
+			records [][]byte
 		}{
 			{
-				name:         "start offset 0, segment size 5, write and read 3",
-				start:        0,
-				segSize:      5,
-				writeRecords: NewTestDataSlice(t, 3),
+				name:    "start offset 0, segment size 5, write and read 3",
+				start:   0,
+				segSize: 5,
+				records: NewTestDataSlice(t, 3),
 			},
 			{
-				name:         "start offset 10, segment size 10, write and read 10",
-				start:        10,
-				segSize:      10,
-				writeRecords: NewTestDataSlice(t, 10),
+				name:    "start offset 10, segment size 10, write and read 10",
+				start:   10,
+				segSize: 10,
+				records: NewTestDataSlice(t, 10),
 			},
 		}
 
@@ -343,7 +343,7 @@ func TestLog_read(t *testing.T) {
 				l, err := New(ctx, opts...)
 				assert.NilError(t, err)
 
-				for i, d := range tc.writeRecords {
+				for i, d := range tc.records {
 					offset, writeErr := l.write(ctx, d)
 					assert.NilError(t, writeErr)
 					assert.Equal(t, offset, tc.start+Offset(i))
@@ -354,7 +354,7 @@ func TestLog_read(t *testing.T) {
 							Offset:  Offset(i) + tc.start,
 							Created: now,
 						},
-						Data: tc.writeRecords[i],
+						Data: tc.records[i],
 					}
 
 					assert.NilError(t, writeErr)
@@ -372,57 +372,57 @@ func Test_offsetRange(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name         string
-		start        Offset
-		segSize      int
-		writeRecords [][]byte
-		want         wantOffsets
+		name    string
+		start   Offset
+		segSize int
+		records [][]byte
+		want    wantOffsets
 	}{
 		{
-			name:         "empty log, starts at 0",
-			start:        0,
-			segSize:      10,
-			writeRecords: nil,
+			name:    "empty log, starts at 0",
+			start:   0,
+			segSize: 10,
+			records: nil,
 			want: wantOffsets{
 				earliest: -1,
 				latest:   -1,
 			},
 		},
 		{
-			name:         "empty log, starts at 100",
-			start:        100,
-			segSize:      10,
-			writeRecords: nil,
+			name:    "empty log, starts at 100",
+			start:   100,
+			segSize: 10,
+			records: nil,
 			want: wantOffsets{
 				earliest: -1,
 				latest:   -1,
 			},
 		},
 		{
-			name:         "log with 10 records, starts at 0, no purge",
-			start:        0,
-			segSize:      20,
-			writeRecords: NewTestDataSlice(t, 10),
+			name:    "log with 10 records, starts at 0, no purge",
+			start:   0,
+			segSize: 20,
+			records: NewTestDataSlice(t, 10),
 			want: wantOffsets{
 				earliest: 0,
 				latest:   9,
 			},
 		},
 		{
-			name:         "log with 10 records, starts at 60, no purge",
-			start:        60,
-			segSize:      20,
-			writeRecords: NewTestDataSlice(t, 10),
+			name:    "log with 10 records, starts at 60, no purge",
+			start:   60,
+			segSize: 20,
+			records: NewTestDataSlice(t, 10),
 			want: wantOffsets{
 				earliest: 60,
 				latest:   69,
 			},
 		},
 		{
-			name:         "log with 30 records, starts at 10, segment size 10, purged history",
-			start:        10,
-			segSize:      10,
-			writeRecords: NewTestDataSlice(t, 30),
+			name:    "log with 30 records, starts at 10, segment size 10, purged history",
+			start:   10,
+			segSize: 10,
+			records: NewTestDataSlice(t, 30),
 			want: wantOffsets{
 				earliest: 20,
 				latest:   39,
@@ -442,7 +442,7 @@ func Test_offsetRange(t *testing.T) {
 			l, err := New(ctx, opts...)
 			assert.NilError(t, err)
 
-			for i, r := range tc.writeRecords {
+			for i, r := range tc.records {
 				offset, writeErr := l.write(ctx, r)
 				assert.NilError(t, writeErr)
 				assert.Equal(t, offset, tc.start+Offset(i))
