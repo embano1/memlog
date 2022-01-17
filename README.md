@@ -47,6 +47,11 @@ problem, so I created `memlog`: an **easy to use, lightweight (in-memory),
 thread-safe, append-only log** inspired by popular streaming systems with a
 **minimal API** using Go's **standard library** primitives 🤩
 
+💡 For an end-to-end API modernization example using `memlog` see the
+`vsphere-event-streaming`
+[project](https://github.com/embano1/vsphere-event-streaming), which transforms
+a SOAP-based events API into an HTTP/REST streaming API.
+
 ## A stateless Log? You gotta be kidding!
 
 True, it sounds like an oxymoron. Why would someone use (build) an *in-memory*
