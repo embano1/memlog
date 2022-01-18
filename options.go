@@ -37,6 +37,17 @@ func WithClock(c clock.Clock) Option {
 	}
 }
 
+// WithMaxRecordDataSize sets the maximum record data (payload) size in bytes
+func WithMaxRecordDataSize(size int) Option {
+	return func(log *Log) error {
+		if size <= 0 {
+			return errors.New("size must be greater than 0")
+		}
+		log.conf.maxRecordSize = size
+		return nil
+	}
+}
+
 // WithMaxSegmentSize sets the maximum size, i.e. number of offsets, in a log
 // segment. Must be greater than 0.
 func WithMaxSegmentSize(size int) Option {
@@ -45,17 +56,6 @@ func WithMaxSegmentSize(size int) Option {
 			return errors.New("size must be greater than 0")
 		}
 		log.conf.segmentSize = size
-		return nil
-	}
-}
-
-// WithMaxRecordDataSize sets the maximum record data (payload) size in bytes
-func WithMaxRecordDataSize(size int) Option {
-	return func(log *Log) error {
-		if size <= 0 {
-			return errors.New("size must be greater than 0")
-		}
-		log.conf.maxRecordSize = size
 		return nil
 	}
 }

@@ -13,8 +13,8 @@ import (
 func Test_newSegment(t *testing.T) {
 	t.Run("new fails with size 0", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 0
+			start = Offset(0)
+			size  = 0
 		)
 		_, err := newSegment(start, size)
 		assert.ErrorContains(t, err, "size must be")
@@ -22,8 +22,8 @@ func Test_newSegment(t *testing.T) {
 
 	t.Run("new fails with negative size", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = -10
+			start = Offset(0)
+			size  = -10
 		)
 		_, err := newSegment(start, size)
 		assert.ErrorContains(t, err, "size must be")
@@ -40,8 +40,8 @@ func Test_newSegment(t *testing.T) {
 
 	t.Run("verify defaults on new segment", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 10
+			start = Offset(0)
+			size  = 10
 		)
 
 		s, err := newSegment(start, size)
@@ -55,8 +55,8 @@ func Test_newSegment(t *testing.T) {
 func TestSegment_ReadWrite(t *testing.T) {
 	t.Run("read fails on cancelled context", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 10
+			start = Offset(0)
+			size  = 10
 		)
 
 		s, err := newSegment(start, size)
@@ -117,8 +117,8 @@ func TestSegment_ReadWrite(t *testing.T) {
 func TestSegment_Write(t *testing.T) {
 	t.Run("write fails on cancelled context", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 10
+			start = Offset(0)
+			size  = 10
 		)
 
 		s, err := newSegment(start, size)
@@ -134,8 +134,8 @@ func TestSegment_Write(t *testing.T) {
 
 	t.Run("write fails on sealed segment", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 10
+			start = Offset(0)
+			size  = 10
 		)
 
 		ctx := context.Background()
@@ -153,8 +153,8 @@ func TestSegment_Write(t *testing.T) {
 
 	t.Run("write fails on full segment", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 5
+			start = Offset(0)
+			size  = 5
 		)
 
 		ctx := context.Background()
@@ -175,8 +175,8 @@ func TestSegment_Write(t *testing.T) {
 
 	t.Run("write and read one record, starts at virtual offset 0", func(t *testing.T) {
 		const (
-			start Offset = 0
-			size         = 10
+			start = Offset(0)
+			size  = 10
 		)
 
 		ctx := context.Background()
@@ -205,10 +205,10 @@ func TestSegment_Write(t *testing.T) {
 
 	t.Run("write and read five records, starts virtual offset 10", func(t *testing.T) {
 		const (
-			start        Offset = 10
-			size                = 10
-			eventIDRange        = 10
-			numRecords          = 5
+			start        = Offset(10)
+			size         = 10
+			eventIDRange = 10
+			numRecords   = 5
 		)
 
 		var (

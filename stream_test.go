@@ -144,8 +144,9 @@ func TestLog_Stream(t *testing.T) {
 				for {
 					if _, ok := stream.Next(); ok {
 						t.Fatalf("should not receive from stream")
+					} else {
+						break
 					}
-					break
 				}
 				assert.Assert(t, errors.Is(stream.Err(), ErrOutOfRange))
 			})
