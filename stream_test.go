@@ -313,7 +313,7 @@ func TestLog_Stream(t *testing.T) {
 			assert.Assert(t, errors.Is(stream.Err(), context.DeadlineExceeded))
 		}()
 
-		// stream reader one
+		// stream reader two
 		wg.Add(1)
 		s2Counter := 0
 		go func() {

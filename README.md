@@ -9,13 +9,12 @@ Card](https://goreportcard.com/badge/github.com/embano1/memlog)](https://gorepor
 [![go.mod Go
 version](https://img.shields.io/github/go-mod/go-version/embano1/memlog)](https://github.com/embano1/memlog)
 
-
 # About
 
 ## tl;dr
 
 An easy to use, lightweight, thread-safe and append-only in-memory data
-structure modelled as a *Log*.
+structure modeled as a *Log*.
 
 ❌ Note: this package is not about providing an in-memory `logging` library. To
 read more about the ideas behind `memlog` please see ["The Log: What every
@@ -64,7 +63,7 @@ streaming systems. It was built for use cases where there exists a *durable
 data/event source*, e.g. a legacy system, REST API, database, etc. that can't
 (or should not) be changed. But the requirement being that the (source) data
 should be made available over a streaming-like API, e.g. *gRPC* or processed by
-a Go application which requires the aformentationed properties of a `Log`.
+a Go application which requires the properties of a `Log`.
 
 `memlog` helps as it allows to bridge between these different APIs and use cases
 as a *building block* to extract and store data `Records` from an external
@@ -110,8 +109,6 @@ A specified `Record` can be read with `Log.Read(ctx, offset)`.
 
 💡 Instead of manually polling the `Log` for new `Records`, the *streaming* API
 `Log.Stream(ctx, startOffset)` should be used.
-
-All methods are safe for *concurrent* use.
 
 ## (Not) one `Log` to rule them all
 
@@ -166,7 +163,7 @@ func main() {
 
 ## Purging the `Log`
 
-The `Log` is devided into an *active* and *history* `segment`. When the *active*
+The `Log` is divided into an *active* and *history* `segment`. When the *active*
 `segment` is full (configurable via `WithMaxSegmentSize()`), it is *sealed*
 (i.e. read-only) and becomes the *history* `segment`. A new empty *active*
 `segment` is created for writes. If there is an existing *history*, it is
