@@ -8,6 +8,7 @@ Card](https://goreportcard.com/badge/github.com/embano1/memlog)](https://gorepor
 [![codecov](https://codecov.io/gh/embano1/memlog/branch/main/graph/badge.svg?token=TC7MW723JO)](https://codecov.io/gh/embano1/memlog)
 [![go.mod Go
 version](https://img.shields.io/github/go-mod/go-version/embano1/memlog)](https://github.com/embano1/memlog)
+[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)  
 
 # About
 
