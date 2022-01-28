@@ -13,9 +13,8 @@ import (
 )
 
 func TestRecord_immutable(t *testing.T) {
-	data := newTestData(t, "1")
-
 	t.Run("deepCopy", func(t *testing.T) {
+		data := newTestData(t, "1")
 		now := time.Now().UTC()
 		testCases := []struct {
 			name   string
@@ -33,10 +32,11 @@ func TestRecord_immutable(t *testing.T) {
 		}
 	})
 
-	t.Run("read, modify copy, read", func(t *testing.T) {
+	t.Run("write, read, modify record, read", func(t *testing.T) {
 		ctx := context.Background()
 		c := clock.NewMock()
 
+		data := newTestData(t, "1")
 		now := c.Now().UTC()
 		l, err := New(ctx, WithClock(c))
 		assert.NilError(t, err)
@@ -53,17 +53,20 @@ func TestRecord_immutable(t *testing.T) {
 		assert.Equal(t, r.Metadata.Offset, offset)
 		assert.DeepEqual(t, r.Data, data)
 
-		// modify fields
+		// modify source data and record fields
+		dataCopy := make([]byte, len(data))
+		copy(dataCopy, data)
+		data = []byte("2")
 		r.Metadata.Created = time.Now().UTC()
 		r.Metadata.Offset = 10
-		r.Data = []byte("changed")
+		r.Data = data
 
 		// 	assert record immutable
 		r2, err := l.read(ctx, offset)
 		assert.NilError(t, err)
 		assert.Equal(t, r2.Metadata.Created, now)
 		assert.Equal(t, r2.Metadata.Offset, offset)
-		assert.DeepEqual(t, r2.Data, data)
+		assert.DeepEqual(t, r2.Data, dataCopy)
 	})
 }
 
