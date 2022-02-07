@@ -37,8 +37,6 @@ func TestLog_Stream(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-
 				testData := NewTestDataSlice(t, tc.segSize)
 				opts := []Option{
 					WithStartOffset(tc.logStart),
@@ -119,8 +117,6 @@ func TestLog_Stream(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-
 				testData := NewTestDataSlice(t, tc.writeRecords)
 				opts := []Option{
 					WithStartOffset(tc.logStart),
@@ -190,8 +186,6 @@ func TestLog_Stream(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-
 				testData := NewTestDataSlice(t, tc.writeRecords)
 				opts := []Option{
 					WithStartOffset(tc.logStart),
@@ -247,8 +241,6 @@ func TestLog_Stream(t *testing.T) {
 	})
 
 	t.Run("two stream receivers, starting at different offsets until stream cancelled", func(t *testing.T) {
-		t.Parallel()
-
 		const (
 			logStart       = Offset(0)
 			segSize        = 1000

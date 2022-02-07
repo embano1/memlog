@@ -9,7 +9,7 @@ import (
 const (
 	// DefaultStartOffset is the start offset of the log
 	DefaultStartOffset = Offset(0)
-	// DefaultSegmentSize is the segment size of the log
+	// DefaultSegmentSize is the segment size, i.e. number of offsets, in the log
 	DefaultSegmentSize = 1024
 	// DefaultMaxRecordDataBytes is the maximum data (payload) size of a record
 	DefaultMaxRecordDataBytes = 1024 << 10 // 1MiB
