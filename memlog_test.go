@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/benbjohnson/clock"
-	"go.uber.org/zap/zaptest"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 
@@ -291,7 +290,6 @@ func TestLog_Checkpoint_Resume(t *testing.T) {
 		log *memlog.Log
 
 		ctx        = context.Background()
-		logr       = zaptest.NewLogger(t).Sugar()
 		sourceData = memlog.NewTestDataSlice(t, sourceDataCount)
 		checkpoint memlog.Offset
 		records    []memlog.Record
@@ -326,7 +324,7 @@ func TestLog_Checkpoint_Resume(t *testing.T) {
 
 			if r.Metadata.Offset == 10 {
 				checkpoint = r.Metadata.Offset
-				logr.Infow("checkpoint created", "offset", checkpoint)
+				t.Logf("checkpoint created at offset %d", checkpoint)
 			}
 		}
 	})
@@ -357,7 +355,7 @@ func TestLog_Checkpoint_Resume(t *testing.T) {
 			if err != nil {
 				assert.Assert(t, errors.Is(err, memlog.ErrFutureOffset))
 				checkpoint = memlog.Offset(i) - 1 // last successful read
-				logr.Infow("checkpoint created", "offset", checkpoint)
+				t.Logf("checkpoint created at offset %d", checkpoint)
 				break
 			}
 
