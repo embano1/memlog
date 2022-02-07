@@ -21,6 +21,7 @@ structure modeled as a *Log*.
 read more about the ideas behind `memlog` please see ["The Log: What every
 software engineer should know about real-time data's unifying
 abstraction"](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying).
+
 ## Motivation
 
 I keep hitting the same user story (use case) over and over again: one or more
@@ -117,9 +118,12 @@ One is not constrained by just creating **one** `Log`. For certain use cases,
 creating multiple `Logs` might be useful. For example:
 
 - Manage completely different data sets/sizes in the same process
-- Partitioning input data by type or *key*
 - Setting different `Log` sizes (i.e. retention times), e.g. premium users will
   have access to a larger *history* of `Records`
+- Partitioning input data by type or *key*
+
+💡 For use cases where you want to order the log by `key(s)`, consider using the
+specialised [`sharded.Log`](sharded/README.md).
 
 ## Example
 
