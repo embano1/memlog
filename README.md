@@ -17,6 +17,10 @@ version](https://img.shields.io/github/go-mod/go-version/embano1/memlog)](https:
 An easy to use, lightweight, thread-safe and append-only in-memory data
 structure modeled as a *Log*.
 
+The `Log` also serves as an abstraction and building block. See
+[`sharded.Log`](./sharded/README.md) for an implementation of a *sharded*
+variant of `memlog.Log`.
+
 ❌ Note: this package is not about providing an in-memory `logging` library. To
 read more about the ideas behind `memlog` please see ["The Log: What every
 software engineer should know about real-time data's unifying
