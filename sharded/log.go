@@ -81,7 +81,7 @@ func (l *Log) Write(ctx context.Context, key []byte, data []byte) (memlog.Offset
 
 	offset, err := l.shards[shard].Write(ctx, data)
 	if err != nil {
-		return offset, fmt.Errorf("write to shard: %w", err)
+		return -1, fmt.Errorf("write to shard: %w", err)
 	}
 
 	return offset, nil
