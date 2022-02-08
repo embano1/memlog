@@ -14,7 +14,7 @@ The `Read()` and `Write()` methods accept a sharding `key` to distribute the
 `Records` based on a (configurable) sharding strategy. 
 
 Unless specified otherwise, the default sharding strategy uses Golang's
-[`fnv.New32a`](https://pkg.go.dev/hash/fnv#New32a) to retrieve a hash and find
+[`fnv.New32a`](https://pkg.go.dev/hash/fnv#New32a) to retrieve a *hash* and find
 the corresponding `Shard` using a *modulo* operation based on the number of
 (configurable) `Shards` in the `Log`. 
 
