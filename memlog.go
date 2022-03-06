@@ -44,8 +44,8 @@ func (r Record) deepCopy() Record {
 	if r.Metadata.Offset == 0 && r.Metadata.Created.IsZero() {
 		return Record{}
 	}
-
-	dCopy := append([]byte(nil), r.Data...)
+	dCopy := make([]byte, len(r.Data))
+	copy(dCopy, r.Data)
 	return Record{
 		Metadata: Header{
 			Offset:  r.Metadata.Offset,
@@ -139,13 +139,14 @@ func (l *Log) write(ctx context.Context, data []byte) (Offset, error) {
 		return -1, errors.New("no data provided")
 	}
 
-	dcopy := append([]byte(nil), data...)
+	dCopy := make([]byte, len(data))
+	copy(dCopy, data)
 	r := Record{
 		Metadata: Header{
 			Offset:  l.offset,
 			Created: l.clock.Now().UTC(),
 		},
-		Data: dcopy,
+		Data: dCopy,
 	}
 
 	err := l.active.write(ctx, r)
