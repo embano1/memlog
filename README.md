@@ -57,46 +57,6 @@ thread-safe, append-only log** inspired by popular streaming systems with a
 [project](https://github.com/embano1/vsphere-event-streaming), which transforms
 a SOAP-based events API into an HTTP/REST streaming API.
 
-## A stateless Log? You gotta be kidding!
-
-True, it sounds like an oxymoron. Why would someone use (build) an *in-memory*
-append-only log that is not durable?
-
-I'm glad you asked 😀
-
-This library certainly is not intended to replace messaging, queuing or
-streaming systems. It was built for use cases where there exists a *durable
-data/event source*, e.g. a legacy system, REST API, database, etc. that can't
-(or should not) be changed. But the requirement being that the (source) data
-should be made available over a streaming-like API, e.g. *gRPC* or processed by
-a Go application which requires the properties of a `Log`.
-
-`memlog` helps as it allows to bridge between these different APIs and use cases
-as a *building block* to extract and store data `Records` from an external
-system into an *in-memory* `Log` (think ordered cache).
-
-These `Records` can then be internally processed (lightweight ETL) or served
-asynchronously, in-order (`Offset`-based) and concurrently over a *modern
-streaming API*, e.g. *gRPC* or HTTP/REST (chunked encoding via long polling), to
-remote clients.
-
-### Checkpointing
-
-Given the data source needs to be durable in this design, one can optionally
-build periodic checkpointing logic using the `Record` `Offset` as the checkpoint
-value. 
-
-💡 When running in Kubernetes,
-[`kvstore`](https://github.com/knative/pkg/tree/main/kvstore) provides a nice
-abstraction on top of a `ConfigMap` for such requirements. 
-
-If the `memlog` process crashes, it can then resume from the last checkpointed
-`Offset`, load the changes since then from the source and resume streaming. 
-
-💡 This approach is quiet similar to the Kubernetes `ListerWatcher()`
-[pattern](https://youtu.be/YIBQrP1grPE?t=1132). See
-[`memlog_test.go`](./memlog_test.go) for some inspiration.
-
 # Usage
 
 The API is intentionally kept minimal. A new `Log` is constructed with
@@ -181,6 +141,51 @@ replaced, i.e. all `Records` are purged from the *history*.
 See [pkg.go.dev](https://pkg.go.dev/github.com/embano1/memlog) for the API
 reference and examples.
 
+## A stateless Log? You gotta be kidding!
+
+True, it sounds like an oxymoron. Why would someone use (build) an *in-memory*
+append-only log that is not durable?
+
+I'm glad you asked 😀
+
+This library certainly is not intended to replace messaging, queuing or
+streaming systems. It was built for use cases where there exists a *durable
+data/event source*, e.g. a legacy system, REST API, database, etc. that can't
+(or should not) be changed. But the requirement being that the (source) data
+should be made available over a streaming-like API, e.g. *gRPC* or processed by
+a Go application which requires the properties of a `Log`.
+
+`memlog` helps as it allows to bridge between these different APIs and use cases
+as a *building block* to extract and store data `Records` from an external
+system into an *in-memory* `Log` (think ordered cache).
+
+These `Records` can then be internally processed (lightweight ETL) or served
+asynchronously, in-order (`Offset`-based) and concurrently over a *modern
+streaming API*, e.g. *gRPC* or HTTP/REST (chunked encoding via long polling), to
+remote clients.
+
+As another example of such an in-memory log-structured design,
+[`DDlog`](https://github.com/vmware/differential-datalog) follows a similar
+approach, where a `DDlog` program is used in conjunction with a persistent
+database, with database records being fed to DDlog as ground facts.
+
+### Checkpointing
+
+Given the data source needs to be durable in this design, one can optionally
+build periodic checkpointing logic using the `Record` `Offset` as the checkpoint
+value. 
+
+💡 When running in Kubernetes,
+[`kvstore`](https://github.com/knative/pkg/tree/main/kvstore) provides a nice
+abstraction on top of a `ConfigMap` for such requirements. 
+
+If the `memlog` process crashes, it can then resume from the last checkpointed
+`Offset`, load the changes since then from the source and resume streaming. 
+
+💡 This approach is quiet similar to the Kubernetes `ListerWatcher()`
+[pattern](https://youtu.be/YIBQrP1grPE?t=1132). See
+[`memlog_test.go`](./memlog_test.go) for some inspiration.
+
 # Benchmark
 
 I haven't done any extensive benchmarking or code optimization. Feel free to
@@ -206,16 +211,18 @@ goos: darwin
 goarch: amd64
 pkg: github.com/embano1/memlog
 cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
-BenchmarkLog_write               9973622                116.7 ns/op           89 B/op          1 allocs/op
-BenchmarkLog_write-2            10612510                111.4 ns/op           89 B/op          1 allocs/op
-BenchmarkLog_write-4            10465269                112.2 ns/op           89 B/op          1 allocs/op
-BenchmarkLog_write-8            10472682                112.7 ns/op           89 B/op          1 allocs/op
-BenchmarkLog_write-16           10525519                113.6 ns/op           89 B/op          1 allocs/op
-BenchmarkLog_read               19875546                59.97 ns/op           32 B/op          1 allocs/op
-BenchmarkLog_read-2             22287092                55.22 ns/op           32 B/op          1 allocs/op
-BenchmarkLog_read-4             21024020                54.66 ns/op           32 B/op          1 allocs/op
-BenchmarkLog_read-8             20789745                55.03 ns/op           32 B/op          1 allocs/op
-BenchmarkLog_read-16            22367100                55.74 ns/op           32 B/op          1 allocs/op
+BenchmarkLog_write
+BenchmarkLog_write              11107804               103.0 ns/op            89 B/op          1 allocs/op
+BenchmarkLog_write-2            11115896               107.1 ns/op            89 B/op          1 allocs/op
+BenchmarkLog_write-4            11419497               105.7 ns/op            89 B/op          1 allocs/op
+BenchmarkLog_write-8            10253677               109.6 ns/op            89 B/op          1 allocs/op
+BenchmarkLog_write-16           10865994               107.7 ns/op            89 B/op          1 allocs/op
+BenchmarkLog_read
+BenchmarkLog_read               24461548                49.49 ns/op           32 B/op          1 allocs/op
+BenchmarkLog_read-2             25002574                46.63 ns/op           32 B/op          1 allocs/op
+BenchmarkLog_read-4             23829378                47.47 ns/op           32 B/op          1 allocs/op
+BenchmarkLog_read-8             22936821                47.47 ns/op           32 B/op          1 allocs/op
+BenchmarkLog_read-16            24121807                48.25 ns/op           32 B/op          1 allocs/op
 PASS
-ok      github.com/embano1/memlog       13.125s
+ok      github.com/embano1/memlog       12.541s
 ```
