@@ -17,7 +17,7 @@ func Example_sharder() {
 	ks := sharded.NewKeySharder(keys)
 
 	opts := []sharded.Option{
-		sharded.WithNumShards(2), // must be >=len(keys)
+		sharded.WithNumShards(uint(len(keys))), // must be >=len(keys)
 		sharded.WithSharder(ks),
 	}
 	l, err := sharded.New(ctx, opts...)
