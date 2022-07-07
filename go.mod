@@ -3,7 +3,7 @@ module github.com/embano1/memlog
 go 1.17
 
 require (
-	github.com/benbjohnson/clock v1.1.0
+	github.com/benbjohnson/clock v1.3.0
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gotest.tools/v3 v3.3.0
 )
