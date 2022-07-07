@@ -59,4 +59,4 @@ jobs:
 
       - if: steps.codecov-enabled.outputs.files_exists == 'true'
         name: Produce Codecov Report
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
