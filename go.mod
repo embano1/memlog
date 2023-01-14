@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/benbjohnson/clock v1.3.0
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sync v0.1.0
 	gotest.tools/v3 v3.4.0
 )
 
-require github.com/google/go-cmp v0.5.5 // indirect
+require github.com/google/go-cmp v0.5.9 // indirect
