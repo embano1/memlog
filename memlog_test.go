@@ -106,7 +106,7 @@ func TestLog_ReadBatch(t *testing.T) {
 		assert.Equal(t, count, 0)
 	})
 
-	t.Run("reads one batch", func(t *testing.T) {
+	t.Run("reads one complete batch without error", func(t *testing.T) {
 		testCases := []struct {
 			name      string
 			start     memlog.Offset // log start
@@ -116,7 +116,7 @@ func TestLog_ReadBatch(t *testing.T) {
 			batchSize int
 		}{
 			{
-				name:      "log starts at 0, write 10 records, no purge, batch size 10",
+				name:      "log starts at 0, write 10 records, no purge, batch size 10, read at 0",
 				start:     0,
 				segSize:   10,
 				records:   memlog.NewTestDataSlice(t, 10),
@@ -124,7 +124,7 @@ func TestLog_ReadBatch(t *testing.T) {
 				batchSize: 10,
 			},
 			{
-				name:      "log starts at 0, write 10 records, no purge, batch size 5",
+				name:      "log starts at 0, write 10 records, no purge, batch size 5, read at 0",
 				start:     0,
 				segSize:   10,
 				records:   memlog.NewTestDataSlice(t, 10),
@@ -132,15 +132,15 @@ func TestLog_ReadBatch(t *testing.T) {
 				batchSize: 5,
 			},
 			{
-				name:      "log starts at 10, write 10 records, no purge, batch size 0",
+				name:      "log starts at 10, write 10 records, no purge, batch size 0, read at 10",
 				start:     10,
 				segSize:   10,
 				records:   memlog.NewTestDataSlice(t, 10),
-				offset:    0,
+				offset:    10,
 				batchSize: 0,
 			},
 			{
-				name:      "log starts at 10, write 5 records, no purge, batch size 5",
+				name:      "log starts at 10, write 5 records, no purge, batch size 5, read at 10",
 				start:     10,
 				segSize:   10,
 				records:   memlog.NewTestDataSlice(t, 5),
@@ -148,7 +148,7 @@ func TestLog_ReadBatch(t *testing.T) {
 				batchSize: 5,
 			},
 			{
-				name:      "log starts at 10, write 30 records, with purge, batch size 10",
+				name:      "log starts at 10, write 30 records, with purge, batch size 10, read at 30",
 				start:     10,
 				segSize:   10,
 				records:   memlog.NewTestDataSlice(t, 30),
@@ -160,9 +160,10 @@ func TestLog_ReadBatch(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				ctx := context.Background()
+				mockClock := clock.NewMock()
 
 				opts := []memlog.Option{
-					memlog.WithClock(clock.NewMock()),
+					memlog.WithClock(mockClock),
 					memlog.WithStartOffset(tc.start),
 					memlog.WithMaxSegmentSize(tc.segSize),
 				}
@@ -170,15 +171,27 @@ func TestLog_ReadBatch(t *testing.T) {
 				l, err := memlog.New(ctx, opts...)
 				assert.NilError(t, err)
 
-				for _, d := range tc.records {
-					_, err = l.Write(ctx, d)
+				wroteRecords := make([]memlog.Record, len(tc.records))
+				for i, d := range tc.records {
+					offset, err := l.Write(ctx, d)
 					assert.NilError(t, err)
+
+					wroteRecords[i] = memlog.Record{
+						Metadata: memlog.Header{
+							Offset:  offset,
+							Created: mockClock.Now(),
+						},
+						Data: d,
+					}
 				}
 
-				records := make([]memlog.Record, tc.batchSize)
-				count, err := l.ReadBatch(ctx, tc.offset, records)
+				gotRecords := make([]memlog.Record, tc.batchSize)
+				count, err := l.ReadBatch(ctx, tc.offset, gotRecords)
 				assert.NilError(t, err)
 				assert.Equal(t, count, tc.batchSize)
+
+				wantRecords := wroteRecords[tc.offset-tc.start : tc.offset-tc.start+memlog.Offset(tc.batchSize)]
+				assert.DeepEqual(t, wantRecords, gotRecords)
 			})
 		}
 	})
