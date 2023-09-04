@@ -59,9 +59,15 @@ a SOAP-based events API into an HTTP/REST streaming API.
 
 # Usage
 
-The API is intentionally kept minimal. A new `Log` is constructed with
-`memlog.New(ctx, options...)`. Data as `[]byte` is written to the log with
-`Log.Write(ctx, data)`.
+```go
+	ml, _ := memlog.New(ctx) // create log
+	offset, _ := ml.Write(ctx, []byte("Hello World")) // write some data
+	record, _ := ml.Read(ctx, offset) // read back data
+	fmt.Printf(string(record.Data)) // prints "Hello World"
+```
+
+The `memlog` API is intentionally kept minimal. A new `Log` is constructed with `memlog.New(ctx, options...)`. Data as
+`[]byte` is written to the log with `Log.Write(ctx, data)`.
 
 The first write to the `Log` using *default* `Options` starts at position
 (`Offset`) `0`. Every write creates an immutable `Record` in the `Log`.
@@ -89,7 +95,7 @@ creating multiple `Logs` might be useful. For example:
 💡 For use cases where you want to order the log by `key(s)`, consider using the
 specialised [`sharded.Log`](sharded/README.md).
 
-## Example
+## Full Example
 
 ```go
 package main
