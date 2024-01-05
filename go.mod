@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/benbjohnson/clock v1.3.5
-	golang.org/x/sync v0.5.0
+	golang.org/x/sync v0.6.0
 	gotest.tools/v3 v3.5.1
 )
 
