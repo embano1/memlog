@@ -33,7 +33,7 @@ jobs:
 
       - name: Check for .codecov.yaml
         id: codecov-enabled
-        uses: andstor/file-existence-action@v2
+        uses: andstor/file-existence-action@v3
         with:
           files: .codecov.yaml
 
