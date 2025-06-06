@@ -6,7 +6,7 @@ toolchain go1.23.2
 
 require (
 	github.com/benbjohnson/clock v1.3.5
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.15.0
 	gotest.tools/v3 v3.5.2
 )
 
